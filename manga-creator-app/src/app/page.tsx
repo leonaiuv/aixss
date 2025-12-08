@@ -1,64 +1,118 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+/**
+ * 首页 - 项目工作台
+ */
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Film, Sparkles } from 'lucide-react';
+import { useProjectStore } from '@/store/project-store';
+import { useConfigStore } from '@/store/config-store';
+import { ProjectCard } from '@/components/project/project-card';
+import { CreateProjectDialog } from '@/components/project/create-project-dialog';
+import { SettingsDialog } from '@/components/settings/settings-dialog';
+import { Button } from '@/components/ui/button';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from '@/components/ui/empty';
+import { toast } from 'sonner';
+
+export default function HomePage() {
+  const router = useRouter();
+  const { projects, deleteProject, setCurrentProject, isLoading } = useProjectStore();
+  const { loadConfig, isConfigured } = useConfigStore();
+
+  // 加载配置
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  // 按更新时间排序
+  const sortedProjects = [...projects].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+
+  // 打开项目
+  const handleOpenProject = (id: string) => {
+    setCurrentProject(id);
+    router.push(`/project/${id}`);
+  };
+
+  // 删除项目
+  const handleDeleteProject = (id: string) => {
+    deleteProject(id);
+    toast.success('项目已删除');
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* 顶部导航 */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Film className="h-6 w-6 text-primary" />
+            <span className="font-semibold text-lg">漫剧创作助手</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {!isConfigured && (
+              <span className="text-sm text-muted-foreground mr-2">
+                请先配置 API Key
+              </span>
+            )}
+            <SettingsDialog />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      {/* 主内容 */}
+      <main className="container py-8">
+        {/* 标题和操作 */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold">我的项目</h1>
+            <p className="text-muted-foreground mt-1">
+              创建和管理你的漫剧创作项目
+            </p>
+          </div>
+          <CreateProjectDialog />
         </div>
+
+        {/* 项目列表 */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        ) : sortedProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sortedProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onOpen={handleOpenProject}
+                onDelete={handleDeleteProject}
+              />
+            ))}
+          </div>
+        ) : (
+          <Empty className="border py-16">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Sparkles className="h-6 w-6" />
+              </EmptyMedia>
+              <EmptyTitle>还没有项目</EmptyTitle>
+              <EmptyDescription>
+                创建你的第一个漫剧项目，开启 AI 创作之旅
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <CreateProjectDialog>
+                <Button size="lg">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  开始创作
+                </Button>
+              </CreateProjectDialog>
+            </EmptyContent>
+          </Empty>
+        )}
       </main>
     </div>
   );
