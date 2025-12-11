@@ -18,6 +18,9 @@
     "incremental": true,
     "esModuleInterop": true,
     "baseUrl": ".",
+    "types": [
+      "vitest/globals"
+    ],
     "paths": {
       "@/*": [
         "./src/*"

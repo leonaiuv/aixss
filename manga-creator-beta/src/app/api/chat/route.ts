@@ -1,4 +1,4 @@
-import { generateText, type CoreMessage } from "ai";
+import { streamText, convertToModelMessages, type CoreMessage } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { agentTools } from "@/lib/agent/tools";
 
@@ -46,18 +46,12 @@ export async function POST(req: Request) {
   const body = await req.json();
   const messages = normalizeMessages(body.messages || []);
 
-  const result = await generateText({
+  const result = streamText({
     model: deepseek("deepseek-chat"),
     system: SYSTEM_PROMPT,
     messages,
     tools: agentTools,
   });
 
-  return new Response(
-    JSON.stringify({
-      success: true,
-      reply: result.text,
-    }),
-    { headers: { "Content-Type": "application/json" } }
-  );
+  return result.toTextStreamResponse();
 }

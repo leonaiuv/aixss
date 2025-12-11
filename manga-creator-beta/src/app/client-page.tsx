@@ -7,31 +7,57 @@ import { Editor } from "@/components/canvas/Editor";
 import { SceneCard } from "@/components/canvas/SceneCard";
 import { useProjectStore } from "@/stores/projectStore";
 
+type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+
 const ChatPanel = () => {
-  const [messages, setMessages] = React.useState<{ id: string; role: "user" | "assistant"; content: string }[]>([]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [input, setInput] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim()) return;
-    const userMessage = { id: crypto.randomUUID(), role: "user" as const, content: input };
+    if (!input.trim() || isSending) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: input,
+    };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsSending(true);
+
+    const assistantId = crypto.randomUUID();
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: [...messages, userMessage] }),
       });
-      const data = await res.json();
-      if (data?.reply) {
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), role: "assistant", content: data.reply as string },
-        ]);
+
+      if (!res.ok || !res.body) {
+        throw new Error("聊天接口异常");
       }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m))
+        );
+      }
+
+      acc += decoder.decode();
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m))
+      );
     } catch (error) {
       setMessages((prev) => [
         ...prev,
