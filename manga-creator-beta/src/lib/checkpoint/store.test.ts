@@ -9,6 +9,7 @@ import {
 describe("checkpoint store (memory)", () => {
   beforeEach(() => {
     resetMemoryCheckpointStore();
+    process.env.USE_SQLITE_STORE = "false";
   });
 
   it("saves and loads a checkpoint", async () => {

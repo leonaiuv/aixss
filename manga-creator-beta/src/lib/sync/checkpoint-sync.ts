@@ -1,69 +1,17 @@
-import type { ProjectCheckpoint, Scene } from "@/lib/checkpoint/store";
+import type { ProjectCheckpoint } from "@/lib/checkpoint/store";
 import { getCheckpointStore } from "@/lib/checkpoint/store";
 import { useProjectStore } from "@/stores/projectStore";
-import { useCanvasStore, type CanvasBlock } from "@/stores/canvasStore";
-import type { ProjectState } from "@/types";
+import { useCanvasStore } from "@/stores/canvasStore";
+import {
+  checkpointToProjectState,
+  projectInfoToCanvasBlock,
+  scenesToCanvasBlocks,
+} from "./checkpoint-helpers";
 
 export interface SyncResult {
   success: boolean;
   projectId?: string;
   error?: string;
-}
-
-export function checkpointToProjectState(checkpoint: ProjectCheckpoint): ProjectState {
-  return {
-    projectId: checkpoint.projectId,
-    workflowState: checkpoint.workflowState,
-    title: checkpoint.title,
-    summary: checkpoint.summary,
-    artStyle: checkpoint.artStyle,
-    protagonist: checkpoint.protagonist,
-    scenes: checkpoint.scenes.map((scene) => ({
-      id: scene.id,
-      order: scene.order,
-      summary: scene.summary,
-      status: scene.status,
-      sceneDescription: scene.sceneDescription,
-      keyframePrompt: scene.keyframePrompt,
-      spatialPrompt: scene.spatialPrompt,
-      dialogues: [],
-    })),
-    currentSceneIndex: 0,
-    canvasContent: [],
-    characters: [],
-    createdAt: new Date(checkpoint.createdAt),
-    updatedAt: new Date(checkpoint.updatedAt),
-  };
-}
-
-export function scenesToCanvasBlocks(scenes: Scene[], artStyle: string): CanvasBlock[] {
-  return scenes.map((scene) => ({
-    id: scene.id,
-    type: "scene",
-    content: {
-      sceneId: scene.id,
-      order: scene.order,
-      summary: scene.summary,
-      status: scene.status,
-      sceneDescription: scene.sceneDescription,
-      keyframePrompt: scene.keyframePrompt,
-      spatialPrompt: scene.spatialPrompt,
-      fullPrompt: scene.keyframePrompt && artStyle ? `${artStyle}, ${scene.keyframePrompt}` : scene.keyframePrompt || "",
-    },
-  }));
-}
-
-export function projectInfoToCanvasBlock(checkpoint: ProjectCheckpoint): CanvasBlock {
-  return {
-    id: `basicInfo-${checkpoint.projectId}`,
-    type: "basicInfo",
-    content: {
-      title: checkpoint.title,
-      summary: checkpoint.summary,
-      artStyle: checkpoint.artStyle,
-      protagonist: checkpoint.protagonist,
-    },
-  };
 }
 
 export async function syncCheckpointToStores(

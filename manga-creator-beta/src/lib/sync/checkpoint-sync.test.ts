@@ -29,6 +29,7 @@ const checkpoint: ProjectCheckpoint = {
 
 describe("checkpoint-sync", () => {
   beforeEach(() => {
+    process.env.USE_SQLITE_STORE = "false";
     useProjectStore.setState((state) => ({ ...state, projectState: null, currentThreadId: null }));
     useCanvasStore.setState((state) => ({ ...state, blocks: [], isDirty: false, lastSyncedAt: null }));
   });

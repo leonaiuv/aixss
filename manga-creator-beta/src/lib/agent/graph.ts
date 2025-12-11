@@ -1,7 +1,7 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { AgentState } from "./state";
 import { checkpointer } from "./checkpoint";
-import { agentTools as tools } from "./tools";
+import { createAgentTools } from "./tools";
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
@@ -32,6 +32,11 @@ Follow the workflow:
 
 Always use the provided tools to modify the project state. Do not hallucinate updates.
 `;
+
+  const tools = createAgentTools({
+    projectId: project.projectId || undefined,
+    threadId: project.threadId || project.projectId || undefined,
+  });
 
   const result = await generateText({
     model,

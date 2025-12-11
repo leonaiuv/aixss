@@ -33,6 +33,14 @@ export interface CheckpointStore {
   delete(projectId: string): Promise<void>;
 }
 
+export async function findCheckpointByThreadId(
+  store: CheckpointStore,
+  threadId: string
+): Promise<ProjectCheckpoint | null> {
+  const all = await store.list();
+  return all.find((item) => item.threadId === threadId) ?? null;
+}
+
 export function createMemoryCheckpointStore(): CheckpointStore {
   const store = new Map<string, ProjectCheckpoint>();
 
@@ -97,7 +105,9 @@ export function resetMemoryCheckpointStore(): void {
 }
 
 export async function getCheckpointStore(): Promise<CheckpointStore> {
-  if (process.env.USE_SQLITE_STORE === "true") {
+  const preferSQLite = process.env.USE_SQLITE_STORE !== "false";
+
+  if (preferSQLite) {
     const { getSQLiteCheckpointStore } = await import("./sqlite-store");
     return getSQLiteCheckpointStore();
   }

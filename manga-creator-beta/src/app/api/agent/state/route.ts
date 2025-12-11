@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { graph } from "@/lib/agent/graph";
+import { getCheckpointStore, findCheckpointByThreadId } from "@/lib/checkpoint/store";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -9,12 +10,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "threadId is required" }, { status: 400 });
   }
 
-  const config = { configurable: { thread_id: threadId } };
+  const store = await getCheckpointStore();
+  const checkpoint = await findCheckpointByThreadId(store, threadId);
+  const config = { configurable: { thread_id: checkpoint?.threadId ?? threadId } };
 
   try {
     const state = await graph.getState(config);
     return NextResponse.json({
-      project: state.values.project || {},
+      project: checkpoint ?? state.values.project ?? {},
       messages: state.values.messages || [],
     });
   } catch (error) {

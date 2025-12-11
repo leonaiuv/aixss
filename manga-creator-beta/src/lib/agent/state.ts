@@ -10,6 +10,7 @@ export const AgentState = Annotation.Root({
     }),
     default: () => ({
       projectId: "",
+       threadId: "",
       title: "",
       summary: "",
       artStyle: "",

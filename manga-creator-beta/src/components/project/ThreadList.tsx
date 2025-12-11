@@ -5,6 +5,11 @@ import type { ProjectCheckpoint, Scene } from "@/lib/checkpoint/store";
 import { useProjectStore } from "@/stores/projectStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { ProjectState } from "@/types";
+import {
+  checkpointToProjectState,
+  projectInfoToCanvasBlock,
+  scenesToCanvasBlocks,
+} from "@/lib/sync/checkpoint-helpers";
 import { Plus, FolderOpen, Clock, ChevronRight, Trash2 } from "lucide-react";
 
 interface ProjectListItemProps {
@@ -26,63 +31,6 @@ const workflowLabels: Record<string, string> = {
   EXPORTING: "导出中",
   EXPORTED: "已导出",
 };
-
-function checkpointToProjectState(checkpoint: ProjectCheckpoint): ProjectState {
-  return {
-    projectId: checkpoint.projectId,
-    workflowState: checkpoint.workflowState,
-    title: checkpoint.title,
-    summary: checkpoint.summary,
-    artStyle: checkpoint.artStyle,
-    protagonist: checkpoint.protagonist,
-    scenes: checkpoint.scenes.map((scene) => ({
-      id: scene.id,
-      order: scene.order,
-      summary: scene.summary,
-      status: scene.status,
-      sceneDescription: scene.sceneDescription,
-      keyframePrompt: scene.keyframePrompt,
-      spatialPrompt: scene.spatialPrompt,
-      dialogues: [],
-    })),
-    currentSceneIndex: 0,
-    canvasContent: [],
-    characters: [],
-    createdAt: new Date(checkpoint.createdAt),
-    updatedAt: new Date(checkpoint.updatedAt),
-  };
-}
-
-function scenesToCanvasBlocks(scenes: Scene[], artStyle: string) {
-  return scenes.map((scene) => ({
-    id: scene.id,
-    type: "scene",
-    content: {
-      sceneId: scene.id,
-      order: scene.order,
-      summary: scene.summary,
-      status: scene.status,
-      sceneDescription: scene.sceneDescription,
-      keyframePrompt: scene.keyframePrompt,
-      spatialPrompt: scene.spatialPrompt,
-      fullPrompt:
-        scene.keyframePrompt && artStyle ? `${artStyle}, ${scene.keyframePrompt}` : scene.keyframePrompt || "",
-    },
-  }));
-}
-
-function projectInfoToCanvasBlock(checkpoint: ProjectCheckpoint) {
-  return {
-    id: `basicInfo-${checkpoint.projectId}`,
-    type: "basicInfo",
-    content: {
-      title: checkpoint.title,
-      summary: checkpoint.summary,
-      artStyle: checkpoint.artStyle,
-      protagonist: checkpoint.protagonist,
-    },
-  };
-}
 
 const ProjectListItem: FC<ProjectListItemProps> = ({ project, isSelected, onSelect, onDelete }) => {
   const formattedDate = new Date(project.updatedAt).toLocaleDateString("zh-CN", {

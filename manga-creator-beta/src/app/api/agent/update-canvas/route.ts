@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { graph } from "@/lib/agent/graph";
 import type { SceneStatus, Scene } from "@/types";
+import { getCheckpointStore } from "@/lib/checkpoint/store";
 
 interface CanvasBlockData {
   id: string;
@@ -25,13 +26,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing blocks data" }, { status: 400 });
     }
 
-    const config = { configurable: { thread_id: projectId } };
+    const store = await getCheckpointStore();
+    const checkpoint = await store.load(projectId);
+    const threadId = checkpoint?.threadId ?? projectId;
+
+    const config = { configurable: { thread_id: threadId } };
     const state = await graph.getState(config);
 
     const currentProject =
       state.values.project ||
       ({
         projectId,
+        threadId,
         title: "",
         summary: "",
         artStyle: "",
@@ -43,22 +49,36 @@ export async function POST(request: NextRequest) {
         characters: [],
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as any);
+        } as any);
 
     const changes = extractProjectChanges(currentProject, blocks);
     if (Object.keys(changes).length > 0) {
+      const updatedAt = new Date();
       await graph.updateState(config, {
         project: {
+          ...currentProject,
           ...changes,
           canvasContent: blocks,
-          updatedAt: new Date(),
+          updatedAt,
         },
       });
+
+      if (checkpoint) {
+        await store.save({
+          ...checkpoint,
+          ...("title" in changes ? { title: changes.title } : {}),
+          ...("summary" in changes ? { summary: changes.summary } : {}),
+          ...("artStyle" in changes ? { artStyle: changes.artStyle } : {}),
+          ...("protagonist" in changes ? { protagonist: changes.protagonist } : {}),
+          ...(changes.scenes ? { scenes: changes.scenes } : {}),
+          updatedAt: updatedAt.toISOString(),
+        });
+      }
     }
 
     return NextResponse.json({
       success: true,
-      data: { projectId, updatedAt: new Date().toISOString() },
+      data: { projectId, threadId, updatedAt: new Date().toISOString() },
       message: "Canvas synced to Agent State",
     });
   } catch (error) {

@@ -1,6 +1,8 @@
-import { streamText, convertToModelMessages, type CoreMessage } from "ai";
+import { streamText, type CoreMessage } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { agentTools } from "@/lib/agent/tools";
+import { createAgentTools } from "@/lib/agent/tools";
+import { getCheckpointStore, findCheckpointByThreadId } from "@/lib/checkpoint/store";
+import type { ProjectCheckpoint } from "@/lib/checkpoint/store";
 
 export const maxDuration = 30;
 
@@ -9,7 +11,7 @@ const deepseek = createOpenAI({
   baseURL: "https://api.deepseek.com",
 });
 
-const SYSTEM_PROMPT = `你是漫剧创作助手，帮助用户创作漫画分镜和提示词。
+const BASE_PROMPT = `你是漫剧创作助手，帮助用户创作漫画分镜和提示词。
 
 你的能力包括：
 1. 帮助用户创建新的漫剧项目
@@ -42,16 +44,55 @@ function normalizeMessages(raw: any[]): CoreMessage[] {
   })) as CoreMessage[];
 }
 
+async function loadCheckpointFromThread(
+  threadId?: string,
+  projectId?: string
+): Promise<ProjectCheckpoint | null> {
+  const store = await getCheckpointStore();
+  if (projectId) {
+    const found = await store.load(projectId);
+    if (found) return found;
+  }
+  if (threadId) {
+    return findCheckpointByThreadId(store, threadId);
+  }
+  return null;
+}
+
+function buildSystemPrompt(checkpoint?: ProjectCheckpoint | null): string {
+  if (!checkpoint) return BASE_PROMPT;
+
+  const sceneCount = checkpoint.scenes.length;
+  return `${BASE_PROMPT}
+
+当前项目上下文：
+- Project ID: ${checkpoint.projectId}
+- Thread ID: ${checkpoint.threadId}
+- 标题: ${checkpoint.title || "未设置"}
+- 梗概: ${checkpoint.summary || "未设置"}
+- 画风: ${checkpoint.artStyle || "未设置"}
+- 主角: ${checkpoint.protagonist || "未设置"}
+- 工作流状态: ${checkpoint.workflowState}
+- 分镜数量: ${sceneCount}`;
+}
+
 export async function POST(req: Request) {
   const body = await req.json();
   const messages = normalizeMessages(body.messages || []);
+  const threadId = typeof body.threadId === "string" ? body.threadId : undefined;
+  const projectId = typeof body.projectId === "string" ? body.projectId : undefined;
+
+  const checkpoint = await loadCheckpointFromThread(threadId, projectId);
 
   const result = streamText({
     model: deepseek("deepseek-chat"),
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(checkpoint),
     messages,
-    tools: agentTools,
+    tools: createAgentTools({
+      threadId: threadId ?? checkpoint?.threadId,
+      projectId: projectId ?? checkpoint?.projectId,
+    }),
   });
 
-  return result.toTextStreamResponse();
+  return result.toUIMessageStreamResponse();
 }

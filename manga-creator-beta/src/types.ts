@@ -32,6 +32,7 @@ export interface Scene {
 
 export interface ProjectState {
   projectId: string;
+  threadId: string;
   workflowState: WorkflowState;
   title: string;
   summary: string;
